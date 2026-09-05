@@ -1,0 +1,17 @@
+workflows:
+  nevermissit-release:
+    name: NeverMissIt Release
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      android_signing:
+        - nevermissit_release
+      groups:
+        - google_play
+      vars:
+        PACKAGE_NAME: com.studioverse.nevermissit
+    scripts:
+      - name: Build NeverMissIt AAB
+        script: ./gradlew bundleRelease
+    artifacts:
+      - app/build/outputs/**/*.aab
