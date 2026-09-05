@@ -4,14 +4,25 @@ workflows:
     max_build_duration: 30
     instance_type: mac_mini_m2
     environment:
-      android_signing:
-        - nevermissit_release
       groups:
         - google_play
       vars:
         PACKAGE_NAME: com.studioverse.nevermissit
     scripts:
+      - name: Restore Android signing keystore
+        script: |
+          python3 -c 'import os,base64; open("$CM_BUILD_DIR/nevermissit-release.jks","wb").write(base64.b64decode(os.environ["NEVERMISSIT_KEYSTORE_BASE64"]))'
+          export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
+          export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
+          export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
+          export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
+          echo "Signing keystore restored."
       - name: Build NeverMissIt AAB
-        script: ./gradlew bundleRelease
+        script: |
+          export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
+          export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
+          export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
+          export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
+          ./gradlew bundleRelease
     artifacts:
       - app/build/outputs/**/*.aab
