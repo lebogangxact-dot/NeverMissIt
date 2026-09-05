@@ -1,11 +1,11 @@
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 
 android {
-    namespace = "com.nevermissit.app"
+    namespace = "com.studioverse.nevermissit"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.nevermissit.app"
+        applicationId = "com.studioverse.nevermissit"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -23,10 +23,10 @@ android {
 
     signingConfigs {
         create("release") {
-            val storeFilePath = System.getenv("NMI_KEYSTORE_FILE")
-            val storePasswordValue = System.getenv("NMI_KEYSTORE_PASSWORD")
-            val keyAliasValue = System.getenv("NMI_KEY_ALIAS")
-            val keyPasswordValue = System.getenv("NMI_KEY_PASSWORD")
+            val storeFilePath = System.getenv("CM_KEYSTORE_PATH")
+            val storePasswordValue = System.getenv("CM_KEYSTORE_PASSWORD")
+            val keyAliasValue = System.getenv("CM_KEY_ALIAS")
+            val keyPasswordValue = System.getenv("CM_KEY_PASSWORD")
             if (!storeFilePath.isNullOrBlank() && !storePasswordValue.isNullOrBlank() &&
                 !keyAliasValue.isNullOrBlank() && !keyPasswordValue.isNullOrBlank()) {
                 storeFile = file(storeFilePath)
