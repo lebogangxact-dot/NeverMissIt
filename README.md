@@ -9,3 +9,6 @@ Simple Android reminder app.
 - Integrated launcher and notification icons
 
 Package: `com.nevermissit.app`
+
+## Build
+The GitHub Actions workflow builds a real Android App Bundle (`.aab`) on pushes to `main` or when manually dispatched.
