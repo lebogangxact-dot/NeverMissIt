@@ -1,0 +1,77 @@
+name: Build Never Miss It AAB
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
+
+      - name: Prepare release signing key
+        shell: bash
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS_SECRET: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD_SECRET: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${SIGNING_KEYSTORE_BASE64:-}" ]]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/never-miss-it-upload.jks"
+            echo "NMI_KEYSTORE_FILE=$RUNNER_TEMP/never-miss-it-upload.jks" >> "$GITHUB_ENV"
+            echo "NMI_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
+            echo "NMI_KEY_ALIAS=$KEY_ALIAS_SECRET" >> "$GITHUB_ENV"
+            echo "NMI_KEY_PASSWORD=$KEY_PASSWORD_SECRET" >> "$GITHUB_ENV"
+            echo "NMI_KEY_GENERATED=false" >> "$GITHUB_ENV"
+          else
+            keytool -genkeypair -v \
+              -keystore "$RUNNER_TEMP/never-miss-it-upload.jks" \
+              -storepass "NeverMissIt-Upload-2026" \
+              -keypass "NeverMissIt-Upload-2026" \
+              -alias "never-miss-it-upload" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Never Miss It, OU=App, O=Never Miss It, L=Pretoria, ST=Gauteng, C=ZA"
+            echo "NMI_KEYSTORE_FILE=$RUNNER_TEMP/never-miss-it-upload.jks" >> "$GITHUB_ENV"
+            echo "NMI_KEYSTORE_PASSWORD=NeverMissIt-Upload-2026" >> "$GITHUB_ENV"
+            echo "NMI_KEY_ALIAS=never-miss-it-upload" >> "$GITHUB_ENV"
+            echo "NMI_KEY_PASSWORD=NeverMissIt-Upload-2026" >> "$GITHUB_ENV"
+            echo "NMI_KEY_GENERATED=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build release AAB
+        run: gradle --no-daemon bundleRelease
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeverMissIt-release-AAB
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+      - name: Upload generated upload key for first build
+        if: env.NMI_KEY_GENERATED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeverMissIt-upload-key-FIRST-BUILD
+          path: ${{ env.NMI_KEYSTORE_FILE }}
+          if-no-files-found: error
