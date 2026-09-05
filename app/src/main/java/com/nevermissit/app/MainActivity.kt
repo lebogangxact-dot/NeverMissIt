@@ -1,4 +1,4 @@
-package com.nevermissit.app
+package com.studioverse.nevermissit
 
 import android.app.*
 import android.content.*
