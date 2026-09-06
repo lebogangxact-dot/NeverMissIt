@@ -9,7 +9,7 @@ workflows:
       vars:
         PACKAGE_NAME: com.studioverse.nevermissit
     scripts:
-      - name: Restore Android signing keystore
+      - name: Restore and verify Android signing keystore
         script: |
           python3 -c 'import os,base64; open("$CM_BUILD_DIR/nevermissit-release.jks","wb").write(base64.b64decode(os.environ["NEVERMISSIT_KEYSTORE_BASE64"]))'
           export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
@@ -18,16 +18,18 @@ workflows:
           export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
           keytool -list -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" >/dev/null
           echo "Signing keystore restored and verified."
-      - name: Build and verify signed NeverMissIt AAB
+      - name: Build and sign NeverMissIt AAB
         script: |
           export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
           export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
           export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
-          ./gradlew bundleRelease
+          ./gradlew clean bundleRelease
           AAB="$CM_BUILD_DIR/app/build/outputs/bundle/release/app-release.aab"
           test -f "$AAB"
-          jarsigner -verify "$AAB"
-          echo "SUCCESS: NeverMissIt AAB is signed."
+          jarsigner -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -keypass "$CM_KEY_PASSWORD" -signedjar "$AAB.signed" "$AAB" "$CM_KEY_ALIAS"
+          mv "$AAB.signed" "$AAB"
+          jarsigner -verify -verbose -certs "$AAB" | grep -q "jar verified"
+          echo "SUCCESS: NeverMissIt AAB is signed and verified."
     artifacts:
       - app/build/outputs/**/*.aab
