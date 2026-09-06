@@ -7,37 +7,39 @@ workflows:
       vars:
         PACKAGE_NAME: com.studioverse.nevermissit
     scripts:
-      - name: Restore and verify Android signing keystore
+      - name: Restore, build, sign, and verify NeverMissIt AAB
         script: |
           set -euo pipefail
-          python3 -c 'import os,base64; open("$CM_BUILD_DIR/nevermissit-release.jks","wb").write(base64.b64decode(os.environ["NEVERMISSIT_KEYSTORE_BASE64"]))'
-          export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
+
+          KEYSTORE="$CM_BUILD_DIR/nevermissit-release.jks"
+          AAB="$CM_BUILD_DIR/app/build/outputs/bundle/release/app-release.aab"
+
+          echo "$NEVERMISSIT_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+
+          export CM_KEYSTORE_PATH="$KEYSTORE"
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
           export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
           export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
-          test -s "$CM_KEYSTORE_PATH"
+
           keytool -list -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" >/dev/null
           echo "Signing keystore restored and verified."
-      - name: Build, sign, and verify NeverMissIt AAB
-        script: |
-          set -euo pipefail
-          export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
-          export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
-          export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
-          export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
+
           gradle clean bundleRelease
-          AAB="$CM_BUILD_DIR/app/build/outputs/bundle/release/app-release.aab"
           test -s "$AAB"
           echo "Gradle AAB created: $AAB"
+
           echo "Checking Gradle-generated AAB signature..."
           jarsigner -verify -verbose -certs "$AAB" > "$CM_BUILD_DIR/gradle-signature-check.txt" 2>&1 || true
           cat "$CM_BUILD_DIR/gradle-signature-check.txt"
+
           if grep -q "jar verified" "$CM_BUILD_DIR/gradle-signature-check.txt" && ! grep -q "jar is unsigned" "$CM_BUILD_DIR/gradle-signature-check.txt"; then
             echo "SUCCESS: Gradle produced a signed NeverMissIt AAB."
           else
             echo "Gradle produced an unsigned AAB. Applying explicit signing fallback..."
             jarsigner -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -keypass "$CM_KEY_PASSWORD" -signedjar "$AAB.signed" "$AAB" "$CM_KEY_ALIAS"
             mv "$AAB.signed" "$AAB"
+
             echo "Checking explicitly signed AAB..."
             jarsigner -verify -verbose -certs "$AAB" > "$CM_BUILD_DIR/final-signature-check.txt" 2>&1 || true
             cat "$CM_BUILD_DIR/final-signature-check.txt"
