@@ -4,6 +4,8 @@ workflows:
     max_build_duration: 30
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - nevermissit_release
       vars:
         PACKAGE_NAME: com.studioverse.nevermissit
     scripts:
