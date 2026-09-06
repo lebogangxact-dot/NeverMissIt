@@ -16,13 +16,18 @@ workflows:
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
           export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
           export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
-          echo "Signing keystore restored."
-      - name: Build NeverMissIt AAB
+          keytool -list -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" >/dev/null
+          echo "Signing keystore restored and verified."
+      - name: Build and verify signed NeverMissIt AAB
         script: |
           export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
           export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
           export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
           ./gradlew bundleRelease
+          AAB="$CM_BUILD_DIR/app/build/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+          jarsigner -verify "$AAB"
+          echo "SUCCESS: NeverMissIt AAB is signed."
     artifacts:
       - app/build/outputs/**/*.aab
