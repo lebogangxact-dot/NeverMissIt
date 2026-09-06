@@ -44,4 +44,4 @@ workflows:
             echo "SUCCESS: NeverMissIt AAB was explicitly signed and verified."
           fi
     artifacts:
-      - app/build/outputs/**/*.aab
+      - app/build/outputs/bundle/release/app-release.aab
