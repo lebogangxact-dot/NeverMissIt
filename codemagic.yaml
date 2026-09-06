@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       groups:
-        - nevermissit_release
+        - Google_Play
       vars:
         PACKAGE_NAME: com.studioverse.nevermissit
     scripts:
