@@ -16,9 +16,10 @@ workflows:
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
           export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
           export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
+          test -s "$CM_KEYSTORE_PATH"
           keytool -list -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" >/dev/null
           echo "Signing keystore restored and verified."
-      - name: Build and sign NeverMissIt AAB
+      - name: Build signed NeverMissIt AAB
         script: |
           export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
@@ -26,10 +27,12 @@ workflows:
           export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
           ./gradlew clean bundleRelease
           AAB="$CM_BUILD_DIR/app/build/outputs/bundle/release/app-release.aab"
-          test -f "$AAB"
-          jarsigner -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -keypass "$CM_KEY_PASSWORD" -signedjar "$AAB.signed" "$AAB" "$CM_KEY_ALIAS"
-          mv "$AAB.signed" "$AAB"
-          jarsigner -verify -verbose -certs "$AAB" | grep -q "jar verified"
+          test -s "$AAB"
+          echo "Checking AAB signature..."
+          jarsigner -verify -verbose -certs "$AAB" > "$CM_BUILD_DIR/aab-signature-check.txt" 2>&1 || true
+          cat "$CM_BUILD_DIR/aab-signature-check.txt"
+          grep -q "jar verified" "$CM_BUILD_DIR/aab-signature-check.txt"
+          ! grep -q "jar is unsigned" "$CM_BUILD_DIR/aab-signature-check.txt"
           echo "SUCCESS: NeverMissIt AAB is signed and verified."
     artifacts:
       - app/build/outputs/**/*.aab
