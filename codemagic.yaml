@@ -9,6 +9,7 @@ workflows:
     scripts:
       - name: Restore and verify Android signing keystore
         script: |
+          set -euo pipefail
           python3 -c 'import os,base64; open("$CM_BUILD_DIR/nevermissit-release.jks","wb").write(base64.b64decode(os.environ["NEVERMISSIT_KEYSTORE_BASE64"]))'
           export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
@@ -19,11 +20,12 @@ workflows:
           echo "Signing keystore restored and verified."
       - name: Build, sign, and verify NeverMissIt AAB
         script: |
+          set -euo pipefail
           export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
           export CM_KEY_ALIAS="$NEVERMISSIT_KEY_ALIAS"
           export CM_KEY_PASSWORD="$NEVERMISSIT_KEY_PASSWORD"
-          ./gradlew clean bundleRelease
+          gradle clean bundleRelease
           AAB="$CM_BUILD_DIR/app/build/outputs/bundle/release/app-release.aab"
           test -s "$AAB"
           echo "Gradle AAB created: $AAB"
