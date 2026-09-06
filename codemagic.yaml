@@ -19,7 +19,7 @@ workflows:
           test -s "$CM_KEYSTORE_PATH"
           keytool -list -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" >/dev/null
           echo "Signing keystore restored and verified."
-      - name: Build signed NeverMissIt AAB
+      - name: Build, sign, and verify NeverMissIt AAB
         script: |
           export CM_KEYSTORE_PATH="$CM_BUILD_DIR/nevermissit-release.jks"
           export CM_KEYSTORE_PASSWORD="$NEVERMISSIT_KEYSTORE_PASSWORD"
@@ -28,11 +28,22 @@ workflows:
           ./gradlew clean bundleRelease
           AAB="$CM_BUILD_DIR/app/build/outputs/bundle/release/app-release.aab"
           test -s "$AAB"
-          echo "Checking AAB signature..."
-          jarsigner -verify -verbose -certs "$AAB" > "$CM_BUILD_DIR/aab-signature-check.txt" 2>&1 || true
-          cat "$CM_BUILD_DIR/aab-signature-check.txt"
-          grep -q "jar verified" "$CM_BUILD_DIR/aab-signature-check.txt"
-          ! grep -q "jar is unsigned" "$CM_BUILD_DIR/aab-signature-check.txt"
-          echo "SUCCESS: NeverMissIt AAB is signed and verified."
+          echo "Gradle AAB created: $AAB"
+          echo "Checking Gradle-generated AAB signature..."
+          jarsigner -verify -verbose -certs "$AAB" > "$CM_BUILD_DIR/gradle-signature-check.txt" 2>&1 || true
+          cat "$CM_BUILD_DIR/gradle-signature-check.txt"
+          if grep -q "jar verified" "$CM_BUILD_DIR/gradle-signature-check.txt" && ! grep -q "jar is unsigned" "$CM_BUILD_DIR/gradle-signature-check.txt"; then
+            echo "SUCCESS: Gradle produced a signed NeverMissIt AAB."
+          else
+            echo "Gradle produced an unsigned AAB. Applying explicit signing fallback..."
+            jarsigner -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" -keypass "$CM_KEY_PASSWORD" -signedjar "$AAB.signed" "$AAB" "$CM_KEY_ALIAS"
+            mv "$AAB.signed" "$AAB"
+            echo "Checking explicitly signed AAB..."
+            jarsigner -verify -verbose -certs "$AAB" > "$CM_BUILD_DIR/final-signature-check.txt" 2>&1 || true
+            cat "$CM_BUILD_DIR/final-signature-check.txt"
+            grep -q "jar verified" "$CM_BUILD_DIR/final-signature-check.txt"
+            ! grep -q "jar is unsigned" "$CM_BUILD_DIR/final-signature-check.txt"
+            echo "SUCCESS: NeverMissIt AAB was explicitly signed and verified."
+          fi
     artifacts:
       - app/build/outputs/**/*.aab
